@@ -4,13 +4,29 @@
  */
 package com.apiwebflux.demo.controller;
 
+import com.apiwebflux.demo.model.Auth;
 import com.apiwebflux.demo.model.User;
+import com.apiwebflux.demo.repository.AuthRepository;
+import com.google.api.client.json.Json;
 import com.google.api.core.ApiFuture;
+import com.google.api.core.ApiFutureCallback;
+import com.google.api.core.ApiFutures;
+import com.google.cloud.firestore.CollectionReference;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QueryDocumentSnapshot;
+import com.google.cloud.firestore.QuerySnapshot;
 import com.google.cloud.firestore.WriteResult;
+import com.google.firebase.FirebaseApp;
 import com.google.firebase.cloud.FirestoreClient;
+
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -29,6 +45,9 @@ import java.util.concurrent.CompletableFuture;
 @RestController
 @RequestMapping("/api")
 public class AuthController {
+
+    @Autowired
+    private AuthRepository repository;
     
     @PostMapping("/signup")
     public Mono<ResponseEntity<String>> signup(@RequestBody User user){
@@ -49,30 +68,43 @@ public class AuthController {
     }
     
     
-    @PostMapping
-    public Mono<ResponseEntity<String>> login(@RequestBody User user){
-        
-        Firestore db = FirestoreClient.getFirestore();
-        
-        return Mono.fromFuture(toCompletableFuture(
-            db.collection("users").document(user.getEmail()).get()
-        )).map(snapshot -> {
-            if (!snapshot.exists()) {
-                return ResponseEntity.status(404).body("Usuario no encontrado");
+    @PostMapping("/login")
+    public Mono<ResponseEntity<String>> login(@RequestBody Auth user) {
+        try {
+            String token = repository.login(user); 
+            JSONObject json = null;
+            if(!token.contains("Error")){
+                json = new JSONObject();
+                json.put("tokenId", token);
+                Firestore db = FirestoreClient.getFirestore();
+
+                ApiFuture<QuerySnapshot> future = db.collection("User").whereEqualTo("email", user.email).get();
+                QuerySnapshot querySnapshot = future.get(); // bloqueante pero dentro del Callable
+
+                if (querySnapshot.isEmpty()) {
+                    JSONObject error = new JSONObject();
+                    error.put("error", "Usuario no encontrado en Firestore");
+                    return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString()));
+                }
+
+                DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+
+                json.put("email", document.getString("email"));
+                json.put("name", document.getString("name"));
+                json.put("uid", document.getId());
             }
-            String storedCorreo = snapshot.getString("email");
-            // Comparar la contraseña enviada con la almacenada (sin encriptar por ahora)
-            if (storedCorreo != null && storedCorreo.equals(user.getEmail())) {
-                // En un sistema real aquí deberías generar un JWT propio o devolver el UID
-                return ResponseEntity.ok("Login exitoso");
-            } else {
-                return ResponseEntity.status(401).body("Contraseña incorrecta");
-            }
-        }).onErrorResume(e ->
-            Mono.just(ResponseEntity.status(500).body("Error al procesar login: " + e.getMessage()))
-        );        
-        
+
+            return Mono.just(ResponseEntity.ok(json.toString()));
+        } catch (Exception e) {
+            JSONObject error = new JSONObject();
+            error.put("error", e.getMessage());
+            return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(error.toString()));
+        }
     }
+
+
+
     
     
     @GetMapping("/profile")
@@ -87,9 +119,9 @@ public class AuthController {
     
     private <T> CompletableFuture<T> toCompletableFuture(ApiFuture<T> apiFuture) {
         CompletableFuture<T> completableFuture = new CompletableFuture<>();
-        com.google.api.core.ApiFutures.addCallback(
+        ApiFutures.addCallback(
             apiFuture,
-            new com.google.api.core.ApiFutureCallback<>() {
+            new ApiFutureCallback<>() {
                 @Override
                 public void onSuccess(T result) {
                     completableFuture.complete(result);
@@ -99,9 +131,11 @@ public class AuthController {
                     completableFuture.completeExceptionally(t);
                 }
             },
-            Runnable::run // ejecuta en el mismo hilo
+            Runnable::run // Usa el mismo hilo
         );
         return completableFuture;
     }
+    
+
     
 }

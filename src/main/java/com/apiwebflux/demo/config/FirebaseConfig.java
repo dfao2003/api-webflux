@@ -30,6 +30,7 @@ public class FirebaseConfig {
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                 .setStorageBucket("https://upsglam2.firebaseio.com")
                 .build();
+                
             if(FirebaseApp.getApps().isEmpty()){
                 FirebaseApp.initializeApp(options);
             }

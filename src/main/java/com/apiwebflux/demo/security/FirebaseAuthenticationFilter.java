@@ -26,8 +26,15 @@ public class FirebaseAuthenticationFilter implements WebFilter{
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        String path = exchange.getRequest().getPath().toString();
+
+        // EXCEPCIONES: rutas públicas que no requieren token
+        if (path.equals("/api/login") || path.equals("/api/signup")) {
+            return chain.filter(exchange); // pasa sin validar token
+        }
+
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
-                
+        
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String idToken = authHeader.substring(7);
             return Mono.fromFuture(toCompletableFuture(FirebaseAuth.getInstance().verifyIdTokenAsync(idToken)))
@@ -44,7 +51,7 @@ public class FirebaseAuthenticationFilter implements WebFilter{
         exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
         return exchange.getResponse().setComplete();
     }
-    
+
             
     private <T> CompletableFuture<T> toCompletableFuture(ApiFuture<T> apiFuture) {
         CompletableFuture<T> completableFuture = new CompletableFuture<>();
