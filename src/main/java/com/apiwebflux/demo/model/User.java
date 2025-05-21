@@ -15,17 +15,17 @@ import org.springframework.data.annotation.Id;
  *
  * @author USUARIO
  */
+// @Data
+// @NoArgsConstructor
+// @AllArgsConstructor
+// @Builder
+// @Document(collectionName = "user")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@Document(collectionName = "user")
 public class User {
     
-    @Id
-    private int uid;
-    private String nombreUsuario;
-    private String email;
-    private String password;
+    //private int uid;
+    public String name;
+    public String email;
+    public String password;
     
 }
