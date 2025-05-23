@@ -1,1 +1,5 @@
 
+spring:
+  webflux:
+    base-path: /api
+    max-in-memory-size: 10MB  

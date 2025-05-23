@@ -24,22 +24,22 @@ import reactor.core.publisher.Mono;
 @Service
 public class FirebasePycudaAPI {
     
-    private final WebClient webClient;
+   // private final WebClient webClient;
 
-    public FirebasePycudaAPI(WebClient.Builder builder) {
-        this.webClient = builder.baseUrl("http://localhost:5001").build();
-    }
+    // public FirebasePycudaAPI(WebClient.Builder builder) {
+    //     this.webClient = builder.baseUrl("http://localhost:5001").build();
+    // }
 
-    public Mono<String> enviarImagen(String base64) {
-        ImagenRequest request = ImagenRequest.builder().base64(base64).build();
+    // public Mono<String> enviarImagen(String base64) {
+    //     ImagenRequest request = ImagenRequest.builder().base64(base64).build();
 
-        return webClient.post()
-                .uri("/procesar")
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(request)
-                .retrieve()
-                .bodyToMono(ImageResponse.class)
-                .map(ImageResponse::getResultado_base64);
-    }
+    //     return webClient.post()
+    //             .uri("/procesar")
+    //             .contentType(MediaType.APPLICATION_JSON)
+    //             .bodyValue(request)
+    //             .retrieve()
+    //             .bodyToMono(ImageResponse.class)
+    //             .map(ImageResponse::getResultado_base64);
+    // }
     
 }

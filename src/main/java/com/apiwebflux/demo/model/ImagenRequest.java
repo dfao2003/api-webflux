@@ -14,10 +14,7 @@ import lombok.NoArgsConstructor;
  * @author USUARIO
  */
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class ImagenRequest {
-    private String nombre;
+    private String filter;
     private String base64;
 }

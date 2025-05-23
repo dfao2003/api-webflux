@@ -4,6 +4,7 @@
  */
 package com.apiwebflux.demo.service;
 
+import com.google.cloud.storage.Acl;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Bucket;
 import com.google.firebase.cloud.StorageClient;
@@ -15,14 +16,22 @@ import java.util.Base64;
  * @author USUARIO
  */
 public class FirebaseStorageService {
-    public String subirImagenBase64(String nombreArchivo, String base64) throws IOException{
+    public String subirImagenBase64(String nombreArchivo, String base64) throws IOException {
+        try{
+            byte[] imagenBytes = Base64.getDecoder().decode(base64);
         
-        byte[] imagenBytes = Base64.getDecoder().decode(base64.split(",")[1]);
+            Bucket bucket = StorageClient.getInstance().bucket();
         
-        Bucket bucket = StorageClient.getInstance().bucket();
+            Blob blob = bucket.create(nombreArchivo, imagenBytes, "image/jpeg");
+            blob.createAcl(Acl.of(Acl.User.ofAllUsers(), Acl.Role.READER));
+
         
-        Blob blob = bucket.create(nombreArchivo, imagenBytes, "imagen/png");
-        
-        return String.format("https://storage.googleapis.com/%s/%s", bucket.getName(), blob.getName());
+            return String.format("https://storage.googleapis.com/%s/%s", bucket.getName(), blob.getName());
+        }catch(Exception e){
+            System.out.println(e.getMessage());
+            return "Mal";
+        }
     }
+
+    
 }

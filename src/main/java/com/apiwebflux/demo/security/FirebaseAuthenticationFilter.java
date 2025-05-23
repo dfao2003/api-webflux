@@ -26,6 +26,8 @@ public class FirebaseAuthenticationFilter implements WebFilter{
 
     @Override
     public Mono<Void> filter(ServerWebExchange exchange, WebFilterChain chain) {
+        
+        //System.out.println("Pasando por filtro");
         String path = exchange.getRequest().getPath().toString();
 
         // EXCEPCIONES: rutas públicas que no requieren token
@@ -34,6 +36,25 @@ public class FirebaseAuthenticationFilter implements WebFilter{
         }
 
         String authHeader = exchange.getRequest().getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
+        //System.out.println("HEADER RECIBIDO: " + authHeader); // Debug
+        
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String idToken = authHeader.substring(7).trim();
+            //System.out.println("TOKEN EXTRAÍDO: " + idToken); // Debug
+        
+            return Mono.fromFuture(toCompletableFuture(FirebaseAuth.getInstance().verifyIdTokenAsync(idToken)))
+                .flatMap(decodedToken -> {
+                    System.out.println("TOKEN VERIFICADO UID: " + decodedToken.getUid()); 
+                    exchange.getAttributes().put("uid", decodedToken.getUid());
+                    return chain.filter(exchange);
+                })
+                .onErrorResume(e -> {
+                    System.out.println("ERROR AL VERIFICAR TOKEN: " + e.getMessage()); 
+                    exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
+                    return exchange.getResponse().setComplete();
+                });
+        }
+                
         
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
             String idToken = authHeader.substring(7);

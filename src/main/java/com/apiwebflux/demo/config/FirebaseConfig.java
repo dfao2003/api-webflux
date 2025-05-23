@@ -11,6 +11,8 @@ import jakarta.annotation.PostConstruct;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
+
 import org.springframework.context.annotation.Configuration;
 
 /**
@@ -28,7 +30,7 @@ public class FirebaseConfig {
             FileInputStream serviceAccount = new FileInputStream("src/main/java/resources/firebase/keyFirebase.json");
             FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
-                .setStorageBucket("https://upsglam2.firebaseio.com")
+                .setStorageBucket("upsglam2.firebasestorage.app")
                 .build();
                 
             if(FirebaseApp.getApps().isEmpty()){
