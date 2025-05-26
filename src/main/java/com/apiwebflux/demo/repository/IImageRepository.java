@@ -4,8 +4,9 @@ import org.json.JSONObject;
 
 import com.apiwebflux.demo.model.ImagenRequest;
 import com.apiwebflux.demo.model.Post;
+import reactor.core.publisher.Mono;
 
 public interface IImageRepository {
-    public String publicPost(Post post);
-    public String applyFilter(ImagenRequest request);
+    public Mono<String> publicPost(Post post);
+    public Mono<String> applyFilter(ImagenRequest request);
 }

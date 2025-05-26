@@ -19,41 +19,39 @@ import com.apiwebflux.demo.model.Auth;
 import com.google.auth.oauth2.GoogleCredentials;
 import com.google.firebase.FirebaseApp;
 import com.google.firebase.FirebaseOptions;
+import java.util.Map;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 @Repository
 public class AuthRepository implements IAuthRepository{
 
-    @Override
-    public String login(Auth user) throws MalformedURLException, IOException {
+    private final WebClient webClient;
 
-        
-        String requestBody = String.format(
-            "{\"email\":\"%s\",\"password\":\"%s\",\"returnSecureToken\":true}", user.email, user.password
+    public AuthRepository(WebClient.Builder builder) {
+        this.webClient = builder.baseUrl(Data.url).build();
+    }
+
+    @Override
+    public Mono<String> login(Auth user) {
+        Map<String, Object> requestBody = Map.of(
+            "email", user.email,
+            "password", user.password,
+            "returnSecureToken", true
         );
 
-        HttpURLConnection conn = (HttpURLConnection) new URL(Data.url).openConnection();
-        conn.setRequestMethod("POST");
-        conn.setDoOutput(true);
-        conn.setRequestProperty("Content-Type", "application/json");
-
-        try (OutputStream os = conn.getOutputStream()) {
-            os.write(requestBody.getBytes());
-            os.flush();
-        }
-
-        if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) {
-            throw new IOException("Error en login Firebase, no existe el usuario ingresado: " + conn.getResponseCode());
-        }
-
-        String response = new BufferedReader(new InputStreamReader(conn.getInputStream()))
-            .lines()
-            .collect(Collectors.joining("\n"));
-
-
-        JSONObject json = new JSONObject(response);
-        String token = json.getString("idToken");
-        //System.out.println(token);
-        return token;
+        return webClient.post()
+            .uri("")
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(requestBody)
+            .retrieve()
+            .bodyToMono(String.class)
+            .map(response -> {
+                JSONObject json = new JSONObject(response);
+                return json.getString("idToken");
+            })
+            .onErrorResume(e -> Mono.error(new RuntimeException("Error en login Firebase: " + e.getMessage())));
     }
     
 }

@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 
 /**
@@ -35,34 +36,26 @@ public class ImagenController {
 
     @PostMapping("/post")
     public Mono<ResponseEntity<String>> post(@RequestBody Post request) {
-        try{
-            System.out.println("Realizando publicacion");
-            String valor = repository.publicPost(request);
-            System.out.println("PUBLICACIÓN HECHA");
-
-            return Mono.just(ResponseEntity.ok("True"));
-        }catch(Exception  e){
-            return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage()));
-        }
+        return repository.publicPost(request) // ya es un Mono<String>
+            .map(result -> ResponseEntity.ok(result))
+            .onErrorResume(e -> Mono.just(ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body("Error al realizar la publicación: " + e.getMessage())));
     }
 
     @PostMapping("/filter")
-    public Mono<ResponseEntity<HashMap<String, String>>> filter(@RequestBody ImagenRequest req){
-        try{
-            //System.out.println("Entrando");
-            String filtro = repository.applyFilter(req);
-
-            //System.out.println(filtro);
-            HashMap<String, String> map = new HashMap<>();
-            map.put("imagen", filtro);
-
-            return Mono.just(ResponseEntity.ok(map));
-
-        }catch(Exception e){
-            HashMap<String, String> error = new HashMap<>();
-            error.put("imagen", e.getMessage());
-            return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error));
-        }
+    public Mono<ResponseEntity<HashMap<String, String>>> filter(@RequestBody ImagenRequest req) {
+        return repository.applyFilter(req)
+            .map(filtro -> {
+                HashMap<String, String> map = new HashMap<>();
+                map.put("imagen", filtro);
+                return ResponseEntity.ok(map);
+            })
+            .onErrorResume(e -> {
+                HashMap<String, String> error = new HashMap<>();
+                error.put("imagen", e.getMessage());
+                return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error));
+            });
     }
     
 }
