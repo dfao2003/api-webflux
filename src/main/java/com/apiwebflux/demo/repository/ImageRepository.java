@@ -45,7 +45,7 @@ public class ImageRepository implements IImageRepository {
     @Override
     public Mono<String> publicPost(Post post) {
         Firestore db = FirestoreClient.getFirestore();
-
+        System.out.println("Publicacion de imagen en base64");
         return service.subirImagenBase64(post.name, post.photo)
             .flatMap(url -> Mono.fromCallable(() -> {
                 Map<String, Object> userData = new HashMap<>();
@@ -57,7 +57,7 @@ public class ImageRepository implements IImageRepository {
                 userData.put("created_at", timestamp);
 
                 db.collection("Post").add(userData); // operación bloqueante
-
+                System.out.println("Guardado correcto de imagenes");
                 return "True";
             }).subscribeOn(Schedulers.boundedElastic()))
             .onErrorResume(e -> Mono.error(new RuntimeException("Error en publicPost: " + e.getMessage())));

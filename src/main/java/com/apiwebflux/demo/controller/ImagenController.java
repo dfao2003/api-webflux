@@ -36,6 +36,7 @@ public class ImagenController {
 
     @PostMapping("/post")
     public Mono<ResponseEntity<String>> post(@RequestBody Post request) {
+        System.out.println("Entrando en metodo");
         return repository.publicPost(request) // ya es un Mono<String>
             .map(result -> ResponseEntity.ok(result))
             .onErrorResume(e -> Mono.just(ResponseEntity
@@ -45,8 +46,10 @@ public class ImagenController {
 
     @PostMapping("/filter")
     public Mono<ResponseEntity<HashMap<String, String>>> filter(@RequestBody ImagenRequest req) {
+        System.out.println("Entrando en metodo");
         return repository.applyFilter(req)
             .map(filtro -> {
+                System.out.println("Respuesta de filtro enviado");
                 HashMap<String, String> map = new HashMap<>();
                 map.put("imagen", filtro);
                 return ResponseEntity.ok(map);

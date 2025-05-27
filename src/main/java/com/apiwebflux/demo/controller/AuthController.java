@@ -68,14 +68,17 @@ public class AuthController {
 
                 return Mono.fromCallable(() -> {
                     Firestore db = FirestoreClient.getFirestore();
-
+                    
+                    System.out.println("Buscando usuario");
                     ApiFuture<QuerySnapshot> future = db.collection("User")
-                        .whereEqualTo("email", user.email).get();
+                        .whereEqualTo("email", user.getEmail()).get();
+                    
 
                     QuerySnapshot querySnapshot = future.get(); // operación bloqueante
 
                     if (querySnapshot.isEmpty()) {
                         JSONObject error = new JSONObject();
+                        System.out.println("Usuario no encontrado en Firestore");
                         error.put("error", "Usuario no encontrado en Firestore");
                         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString());
                     }

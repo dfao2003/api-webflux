@@ -27,6 +27,8 @@ public class FirebaseStorageService {
 
                 Blob blob = bucket.create(nombreArchivo, imagenBytes, "image/jpeg");
                 blob.createAcl(Acl.of(Acl.User.ofAllUsers(), Acl.Role.READER));
+                System.out.println(blob.getName());
+                System.out.println("Guardado de foto");
 
                 return String.format("https://storage.googleapis.com/%s/%s", bucket.getName(), blob.getName());
             } catch (Exception e) {

@@ -39,6 +39,9 @@ public class UserRepository implements IUserRepository {
     @Override
     public Mono<String> signIn(User user) {
         // Paso 1: Crear usuario en Firebase (bloqueante → encapsular en Mono)
+        System.out.println(user.email);
+        System.out.println(user.name);
+        System.out.println(user.password);
         return Mono.fromCallable(() -> {
             CreateRequest request = new CreateRequest()
                 .setEmail(user.getEmail())
@@ -47,10 +50,13 @@ public class UserRepository implements IUserRepository {
             UserRecord record = FirebaseAuth.getInstance().createUser(request);
 
             Firestore db = FirestoreClient.getFirestore();
+            
             Map<String, Object> userData = new HashMap<>();
             userData.put("email", user.getEmail());
             userData.put("name", user.getName());
+
             db.collection("User").document(record.getUid()).set(userData);
+
 
             return user;
         })
@@ -62,9 +68,10 @@ public class UserRepository implements IUserRepository {
                 "password", u.getPassword(),
                 "returnSecureToken", true
             );
+            System.out.println("Creacion de usuario correcto");
 
             return webClient.post()
-                .uri("")
+                .uri(Data.url)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()

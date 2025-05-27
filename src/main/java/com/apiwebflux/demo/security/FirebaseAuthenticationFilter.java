@@ -31,7 +31,7 @@ public class FirebaseAuthenticationFilter implements WebFilter{
         String path = exchange.getRequest().getPath().toString();
 
         // EXCEPCIONES: rutas públicas que no requieren token
-        if (path.equals("/api/login") || path.equals("/api/signup")) {
+        if (path.equals("/api/login") || path.equals("/api/signup") || path.equals("/img/filter")) {
             return chain.filter(exchange); // pasa sin validar token
         }
 
