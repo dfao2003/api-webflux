@@ -7,6 +7,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -26,6 +27,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import reactor.util.retry.Retry;
 
 @Repository
 public class UserRepository implements IUserRepository {
@@ -39,9 +41,6 @@ public class UserRepository implements IUserRepository {
     @Override
     public Mono<String> signIn(User user) {
         // Paso 1: Crear usuario en Firebase (bloqueante → encapsular en Mono)
-        System.out.println(user.email);
-        System.out.println(user.name);
-        System.out.println(user.password);
         return Mono.fromCallable(() -> {
             CreateRequest request = new CreateRequest()
                 .setEmail(user.getEmail())
@@ -76,7 +75,11 @@ public class UserRepository implements IUserRepository {
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(String.class)
-                .map(response -> new JSONObject(response).getString("idToken"));
+                .doOnNext(token -> System.out.println(">> Firebase respondio"))
+                .map(response -> new JSONObject(response).getString("idToken"))
+                .doOnNext(token -> System.out.println(">> Token obtenido"))
+                .timeout(Duration.ofSeconds(3)) // fail si tarda más 
+                .retryWhen(Retry.fixedDelay(2, Duration.ofMillis(500)));
         })
         .onErrorResume(e -> Mono.error(new RuntimeException("Error en signIn: " + e.getMessage())));
     }

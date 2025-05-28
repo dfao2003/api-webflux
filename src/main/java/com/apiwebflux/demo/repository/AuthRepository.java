@@ -9,6 +9,7 @@ import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.time.Duration;
 import java.util.stream.Collectors;
 
 import org.json.JSONObject;
@@ -22,7 +23,11 @@ import com.google.firebase.FirebaseOptions;
 import java.util.Map;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.WebClient;
+
+import reactor.core.publisher.Flux;
+//import reactor.core.publisher.Mono;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 @Repository
 public class AuthRepository implements IAuthRepository{
@@ -40,20 +45,23 @@ public class AuthRepository implements IAuthRepository{
             "password", user.password,
             "returnSecureToken", true
         );
-
-
-        
+        System.out.println("Realizando autenticacion");
         return webClient.post()
-            .uri("")
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(requestBody)
-            .retrieve()
-            .bodyToMono(String.class)
-            .map(response -> {
-                JSONObject json = new JSONObject(response);
-                return json.getString("idToken");
-            })
-            .onErrorResume(e -> Mono.error(new RuntimeException("Error en login Firebase: " + e.getMessage())));
+        .uri(Data.url)
+        .contentType(MediaType.APPLICATION_JSON)
+        .bodyValue(requestBody)
+        .retrieve()
+        .bodyToMono(String.class)
+        .doOnNext(r -> System.out.println(">> Firebase respondió"))
+        .map(response -> new JSONObject(response).getString("idToken"))
+        .doOnNext(token -> System.out.println(">> Token obtenido"))
+        .timeout(Duration.ofSeconds(3)) // fail si tarda más 
+        .retryWhen(Retry.fixedDelay(2, Duration.ofMillis(500)))
+        .onErrorResume(e -> {
+            System.out.println(">> Error en login: " + e.getMessage());
+            return Mono.error(new RuntimeException("Error en login Firebase: " + e.getMessage()));
+        });
+
     }
     
 }

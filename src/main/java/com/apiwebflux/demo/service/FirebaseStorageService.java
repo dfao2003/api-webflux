@@ -10,6 +10,8 @@ import com.google.cloud.storage.Bucket;
 import com.google.firebase.cloud.StorageClient;
 import java.io.IOException;
 import java.util.Base64;
+import java.util.UUID;
+
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 
@@ -25,7 +27,8 @@ public class FirebaseStorageService {
 
                 Bucket bucket = StorageClient.getInstance().bucket();
 
-                Blob blob = bucket.create(nombreArchivo, imagenBytes, "image/jpeg");
+                String name = nombreArchivo + UUID.randomUUID() + System.currentTimeMillis();
+                Blob blob = bucket.create(name, imagenBytes, "image/jpeg");
                 blob.createAcl(Acl.of(Acl.User.ofAllUsers(), Acl.Role.READER));
                 System.out.println(blob.getName());
                 System.out.println("Guardado de foto");
