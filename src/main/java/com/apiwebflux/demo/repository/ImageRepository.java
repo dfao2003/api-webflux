@@ -38,7 +38,7 @@ public class ImageRepository implements IImageRepository {
     private final FirebaseStorageService service;
 
     public ImageRepository(WebClient.Builder builder) {
-        this.webClient = builder.baseUrl("http://localhost:5000").build(); // Base para los filtros
+        this.webClient = builder.baseUrl("http://api-pycuda:5000").build(); // Base para los filtros
         this.service = new FirebaseStorageService(); // Instanciar aquí una vez
     }
 
