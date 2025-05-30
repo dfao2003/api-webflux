@@ -17,13 +17,21 @@ import org.springframework.stereotype.Repository;
 
 import com.apiwebflux.demo.environments.Data;
 import com.apiwebflux.demo.model.User;
+import com.apiwebflux.demo.service.FirebaseStorageService;
+import com.google.api.core.ApiFuture;
+import com.google.cloud.firestore.DocumentSnapshot;
 import com.google.cloud.firestore.Firestore;
+import com.google.cloud.firestore.QuerySnapshot;
+import com.google.cloud.firestore.WriteResult;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseAuthException;
 import com.google.firebase.auth.UserRecord;
 import com.google.firebase.auth.UserRecord.CreateRequest;
 import com.google.firebase.cloud.FirestoreClient;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
@@ -33,9 +41,11 @@ import reactor.util.retry.Retry;
 public class UserRepository implements IUserRepository {
 
     private final WebClient webClient;
+    private final FirebaseStorageService service;
 
     public UserRepository(WebClient.Builder builder) {
         this.webClient = builder.baseUrl(Data.url).build();
+        this.service = new FirebaseStorageService(); // Instanciar aquí una vez
     }
 
     @Override
@@ -53,6 +63,7 @@ public class UserRepository implements IUserRepository {
             Map<String, Object> userData = new HashMap<>();
             userData.put("email", user.getEmail());
             userData.put("name", user.getName());
+            userData.put("photo", "");
 
             db.collection("User").document(record.getUid()).set(userData);
 
@@ -83,5 +94,42 @@ public class UserRepository implements IUserRepository {
         })
         .onErrorResume(e -> Mono.error(new RuntimeException("Error en signIn: " + e.getMessage())));
     }
+
+    @Override
+    public Mono<ResponseEntity<String>> modify(String email, String name, String photo) {
+        return Mono.fromCallable(() -> {
+            Firestore db = FirestoreClient.getFirestore();
+            ApiFuture<QuerySnapshot> future = db.collection("User")
+                .whereEqualTo("email", email)
+                .get();
+            return future.get();
+        })
+        .subscribeOn(Schedulers.boundedElastic())
+        .flatMap(querySnapshot -> {
+            if (querySnapshot.isEmpty()) {
+                JSONObject error = new JSONObject();
+                error.put("error", "Usuario no encontrado en Firestore");
+                return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString()));
+            }
+
+            DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+            String documentId = document.getId();
+
+            return service.subirImagenBase64(name, photo) // ← Mono<String>
+                .flatMap(newPhotoUrl -> Mono.fromCallable(() -> {
+                    Firestore db = FirestoreClient.getFirestore(); // puede reutilizarse
+                    ApiFuture<WriteResult> writeResult = db.collection("User")
+                        .document(documentId)
+                        .update("photo", newPhotoUrl);
+                    writeResult.get(); // bloqueante
+
+                    JSONObject json = new JSONObject();
+                    json.put("photo", newPhotoUrl);
+                    
+                    return ResponseEntity.ok(json.toString());
+                }).subscribeOn(Schedulers.boundedElastic()));
+        });
+    }
+
     
 }

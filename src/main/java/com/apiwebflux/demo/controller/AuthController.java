@@ -5,6 +5,7 @@
 package com.apiwebflux.demo.controller;
 
 import com.apiwebflux.demo.model.Auth;
+import com.apiwebflux.demo.model.Edit;
 import com.apiwebflux.demo.model.User;
 import com.apiwebflux.demo.repository.AuthRepository;
 import com.apiwebflux.demo.repository.IAuthRepository;
@@ -89,6 +90,7 @@ public class AuthController {
                     json.put("tokenId", token);
                     json.put("email", document.getString("email"));
                     json.put("name", document.getString("name"));
+                    json.put("photo", document.getString("photo"));
                     json.put("uid", document.getId());
 
                     System.out.println("CREACION DE USUARIO CORRECTO");
@@ -133,6 +135,7 @@ public class AuthController {
                     json.put("tokenId", token);
                     json.put("email", document.getString("email"));
                     json.put("name", document.getString("name"));
+                    json.put("photo", document.getString("photo"));
                     json.put("uid", document.getId());
 
                     System.out.println("INICIO DE SESION CORRECTO");
@@ -145,6 +148,19 @@ public class AuthController {
                 error.put("error", e.getMessage());
                 return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error.toString()));
             });
+    }
+
+  @PostMapping("/edit")
+    public Mono<ResponseEntity<String>> edit(@RequestBody Edit edit) {
+        return repositoryUser.modify(edit.email, edit.name, edit.photo)
+        // .flatMap(url -> {
+        //     System.out.println(url);
+        //     return Mono.just(ResponseEntity.ok(url.toString()));
+        // })
+            .onErrorResume(e -> Mono.just(
+                ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Error al realizar la MODIFICACION: " + e.getMessage())
+            ));
     }
 
 
