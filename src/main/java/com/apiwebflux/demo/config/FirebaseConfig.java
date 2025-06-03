@@ -23,23 +23,29 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class FirebaseConfig {
     
-    @PostConstruct
-    public void init() throws IOException{
-        
-        try{
-            FileInputStream serviceAccount = new FileInputStream("src/main/java/resources/firebase/keyFirebase.json");
+   @PostConstruct
+    public void init() throws IOException {
+        try {
+            String path = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+            if (path == null || path.isEmpty()) {
+                throw new FileNotFoundException("La variable de entorno GOOGLE_APPLICATION_CREDENTIALS no está definida");
+            }
+
+            FileInputStream serviceAccount = new FileInputStream(path);
+
             FirebaseOptions options = FirebaseOptions.builder()
                 .setCredentials(GoogleCredentials.fromStream(serviceAccount))
                 .setStorageBucket("upsglam2.firebasestorage.app")
                 .build();
-                
-            if(FirebaseApp.getApps().isEmpty()){
+
+            if (FirebaseApp.getApps().isEmpty()) {
                 FirebaseApp.initializeApp(options);
             }
-        
+
         } catch (FileNotFoundException e) {
             System.out.println("No se encontró el archivo: " + e.getMessage());
         }
     }
+
     
 }

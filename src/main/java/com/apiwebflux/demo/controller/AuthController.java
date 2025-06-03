@@ -5,6 +5,7 @@
 package com.apiwebflux.demo.controller;
 
 import com.apiwebflux.demo.model.Auth;
+import com.apiwebflux.demo.model.Edit;
 import com.apiwebflux.demo.model.User;
 import com.apiwebflux.demo.repository.AuthRepository;
 import com.apiwebflux.demo.repository.IAuthRepository;
@@ -39,6 +40,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 import java.util.concurrent.CompletableFuture;
+import reactor.core.scheduler.Schedulers;
 
 /**
  *
@@ -56,77 +58,109 @@ public class AuthController {
     private IUserRepository repositoryUser;
     
     @PostMapping("/signup")
-    public Mono<ResponseEntity<String>> signup(@RequestBody User user){
-        try{
-            String token = repositoryUser.signIn(user);
-            JSONObject json = null;
-            if(!token.contains("error")){
-                json = new JSONObject();
-                json.put("tokenId", token);
-                Firestore db = FirestoreClient.getFirestore();
-
-                ApiFuture<QuerySnapshot> future = db.collection("User").whereEqualTo("email", user.email).get();
-                QuerySnapshot querySnapshot = future.get(); // bloqueante pero dentro del Callable
-
-                if (querySnapshot.isEmpty()) {
+    public Mono<ResponseEntity<String>> signup(@RequestBody User user) {
+        return repositoryUser.signIn(user) // devuelve Mono<String>
+            .flatMap(token -> {
+                if (token.contains("error")) {
                     JSONObject error = new JSONObject();
-                    error.put("error", "Usuario no encontrado en Firestore");
-                    return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString()));
+                    error.put("error", "Error al crear usuario");
+                    return Mono.just(ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error.toString()));
                 }
 
-                DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                return Mono.fromCallable(() -> {
+                    Firestore db = FirestoreClient.getFirestore();
+                    
+                    System.out.println("Buscando usuario");
+                    ApiFuture<QuerySnapshot> future = db.collection("User")
+                        .whereEqualTo("email", user.getEmail()).get();
+                    
 
-                json.put("email", document.getString("email"));
-                json.put("name", document.getString("name"));
-                json.put("uid", document.getId());
-            }
+                    QuerySnapshot querySnapshot = future.get(); // operación bloqueante
 
-            System.out.println("CREACION DE USUARIO CORRECTO");
-            return Mono.just(ResponseEntity.ok(json.toString()));
-        }catch(Exception e){
-            System.out.println(e.getMessage());
-            JSONObject error = new JSONObject();
-            error.put("error", e.getMessage());
-            return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(error.toString()));
-        }
-                
-    }
-    
+                    if (querySnapshot.isEmpty()) {
+                        JSONObject error = new JSONObject();
+                        System.out.println("Usuario no encontrado en Firestore");
+                        error.put("error", "Usuario no encontrado en Firestore");
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString());
+                    }
+
+                    DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+
+                    JSONObject json = new JSONObject();
+                    json.put("tokenId", token);
+                    json.put("email", document.getString("email"));
+                    json.put("name", document.getString("name"));
+                    json.put("photo", document.getString("photo"));
+                    json.put("uid", document.getId());
+
+                    System.out.println("CREACION DE USUARIO CORRECTO");
+
+                    return ResponseEntity.ok(json.toString());
+                }).subscribeOn(Schedulers.boundedElastic());
+            })
+            .onErrorResume(e -> {
+                JSONObject error = new JSONObject();
+                error.put("error", e.getMessage());
+                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error.toString()));
+            });
+    }   
     
     @PostMapping("/login")
     public Mono<ResponseEntity<String>> login(@RequestBody Auth user) {
-        try {
-            String token = repository.login(user); 
-            JSONObject json = null;
-            if(!token.contains("Error")){
-                json = new JSONObject();
-                json.put("tokenId", token);
-                Firestore db = FirestoreClient.getFirestore();
-
-                ApiFuture<QuerySnapshot> future = db.collection("User").whereEqualTo("email", user.email).get();
-                QuerySnapshot querySnapshot = future.get(); // bloqueante pero dentro del Callable
-
-                if (querySnapshot.isEmpty()) {
+        return repository.login(user)
+            .flatMap(token -> {
+                if (token.contains("Error")) {
                     JSONObject error = new JSONObject();
-                    error.put("error", "Usuario no encontrado en Firestore");
-                    return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString()));
+                    error.put("error", "Token inválido");
+                    return Mono.just(ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error.toString()));
                 }
 
-                DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+                return Mono.fromCallable(() -> {
+                    Firestore db = FirestoreClient.getFirestore();
 
-                json.put("email", document.getString("email"));
-                json.put("name", document.getString("name"));
-                json.put("uid", document.getId());
-            }
-            System.out.println("INICIO DE SESION CORRECTO");
-            return Mono.just(ResponseEntity.ok(json.toString()));
-        } catch (Exception e) {
-            JSONObject error = new JSONObject();
-            error.put("error", e.getMessage());
-            return Mono.just(ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(error.toString()));
-        }
+                    ApiFuture<QuerySnapshot> future = db.collection("User")
+                        .whereEqualTo("email", user.email).get();
+
+                    QuerySnapshot querySnapshot = future.get(); // aún bloqueante
+
+                    if (querySnapshot.isEmpty()) {
+                        JSONObject error = new JSONObject();
+                        error.put("error", "Usuario no encontrado en Firestore");
+                        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error.toString());
+                    }
+
+                    DocumentSnapshot document = querySnapshot.getDocuments().get(0);
+
+                    JSONObject json = new JSONObject();
+                    json.put("tokenId", token);
+                    json.put("email", document.getString("email"));
+                    json.put("name", document.getString("name"));
+                    json.put("photo", document.getString("photo"));
+                    json.put("uid", document.getId());
+
+                    System.out.println("INICIO DE SESION CORRECTO");
+                    return ResponseEntity.ok(json.toString());
+
+                }).subscribeOn(Schedulers.boundedElastic()); // mover operación bloqueante a un hilo aparte
+            })
+            .onErrorResume(e -> {
+                JSONObject error = new JSONObject();
+                error.put("error", e.getMessage());
+                return Mono.just(ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error.toString()));
+            });
+    }
+
+  @PostMapping("/edit")
+    public Mono<ResponseEntity<String>> edit(@RequestBody Edit edit) {
+        return repositoryUser.modify(edit.email, edit.name, edit.photo)
+        // .flatMap(url -> {
+        //     System.out.println(url);
+        //     return Mono.just(ResponseEntity.ok(url.toString()));
+        // })
+            .onErrorResume(e -> Mono.just(
+                ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                            .body("Error al realizar la MODIFICACION: " + e.getMessage())
+            ));
     }
 
 

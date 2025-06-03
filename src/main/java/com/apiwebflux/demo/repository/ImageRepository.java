@@ -25,78 +25,54 @@ import com.apiwebflux.demo.service.FirebaseStorageService;
 import com.google.cloud.Timestamp;
 import com.google.cloud.firestore.Firestore;
 import com.google.firebase.cloud.FirestoreClient;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 
 @Repository
-public class ImageRepository implements IImageRepository{
+public class ImageRepository implements IImageRepository {
 
-    private FirebaseStorageService service;
+    private final WebClient webClient;
+    private final FirebaseStorageService service;
 
-    @Override
-    public String publicPost(Post post) {
-        try{
-
-            Firestore db = FirestoreClient.getFirestore();
-            service = new FirebaseStorageService();
-
-            System.out.println("Subiendo foto");
-            String url = service.subirImagenBase64(post.name, post.photo);
-
-
-            System.out.println(post.name);
-            System.out.println(post.photo);
-
-            Map<String, Object> userData = new HashMap<>();
-
-            Timestamp timestamp = Timestamp.of(post.getCreated_at());
-
-            userData.put("description", post.description);
-            userData.put("uid_user", post.uid_user);
-            userData.put("url", url);
-            userData.put("created_at", timestamp);
-            
-
-            db.collection("Post").add(userData);
-
-            return "True";
-
-        }catch(Exception e){
-            System.err.println(e.getMessage());
-            throw new UnsupportedOperationException(e.getMessage());
-        }
+    public ImageRepository(WebClient.Builder builder) {
+        this.webClient = builder.baseUrl("http://api-pycuda:5000").build(); // Base para los filtros
+        this.service = new FirebaseStorageService(); // Instanciar aquí una vez
     }
 
     @Override
-    public String applyFilter(ImagenRequest request)  {
+    public Mono<String> publicPost(Post post) {
+        Firestore db = FirestoreClient.getFirestore();
 
-        System.out.println("Entrando en metodo");
-        RestTemplate restTemplate = new RestTemplate();
+        return service.subirImagenBase64(post.name, post.photo)
+            .flatMap(url -> Mono.fromCallable(() -> {
+                Map<String, Object> userData = new HashMap<>();
+                Timestamp timestamp = Timestamp.of(post.getCreated_at());
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
+                userData.put("description", post.description);
+                userData.put("uid_user", post.uid_user);
+                userData.put("url", url);
+                userData.put("created_at", timestamp);
 
-            Map<String, String> flaskBody = new HashMap<>();
-            flaskBody.put("image", request.getBase64());
+                db.collection("Post").add(userData); // operación bloqueante
 
-            HttpEntity<Map<String, String>> requestEntity = new HttpEntity<>(flaskBody, headers);
+                return "True";
+            }).subscribeOn(Schedulers.boundedElastic()))
+            .onErrorResume(e -> Mono.error(new RuntimeException("Error en publicPost: " + e.getMessage())));
+}
+    @Override
+    public Mono<String> applyFilter(ImagenRequest request) {
+        Map<String, String> flaskBody = Map.of("image", request.getBase64());
 
-            //System.out.println(request.getBase64());
-            String flaskUrl = "http://localhost:5000/"+ request.getFilter(); // o la IP real si es externa
-
-            ResponseEntity<Map> response = restTemplate.postForEntity(flaskUrl, requestEntity, Map.class);
-
-            System.out.println("Realizando POST");
-            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                System.out.println("Exito");
-                String processedImage = response.getBody().get("imagen").toString();
-                //System.out.println(processedImage);
-                return processedImage;
-            } else {
-                return HttpStatus.INTERNAL_SERVER_ERROR.toString();
-            }
-
-            
-        //throw new UnsupportedOperationException("Unimplemented method 'applyFilter'");
+        return webClient.post()
+            .uri("/" + request.getFilter())
+            .contentType(MediaType.APPLICATION_JSON)
+            .bodyValue(flaskBody)
+            .retrieve()
+            .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {})
+            .map(response -> response.get("imagen").toString())
+            .onErrorResume(e -> Mono.error(new RuntimeException("Error aplicando filtro: " + e.getMessage())));
     }
-    
 }

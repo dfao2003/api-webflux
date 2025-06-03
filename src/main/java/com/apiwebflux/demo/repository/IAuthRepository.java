@@ -7,6 +7,9 @@ import java.net.MalformedURLException;
 import com.apiwebflux.demo.model.Auth;
 import com.apiwebflux.demo.model.User;
 
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 public interface IAuthRepository {
-    public String login(Auth user) throws FileNotFoundException, MalformedURLException, IOException;
+    Mono<String> login(Auth user);
 }
