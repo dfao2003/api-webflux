@@ -1,3 +1,5 @@
+![UPS Logo](https://upload.wikimedia.org/wikipedia/commons/thumb/b/b0/Logo_Universidad_Polit%C3%A9cnica_Salesiana_del_Ecuador.png/640px-Logo_Universidad_Polit%C3%A9cnica_Salesiana_del_Ecuador.png)
+
 # Spring Boot WebFlux API con Firebase
 
 Este proyecto tiene como objetivo desarrollar una API eficiente y reactiva usando **Spring Boot WebFlux** con integración a **Firebase (Authentication y Firestore)**. El sistema está diseñado para soportar operaciones concurrentes, validaciones, manejo adecuado de errores, y funcionalidades en tiempo real como likes, comentarios y feed.
