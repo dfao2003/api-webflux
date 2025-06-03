@@ -156,3 +156,14 @@ Este enfoque garantiza una autenticación reactiva, segura y escalable.
 - Endpoints `/api/signup`, `/api/login`, `/img/post`, `/img/filter` están listos para pruebas.
 - Requiere conexión a internet y configuración previa del Firebase Admin SDK.
 
+---
+## 🔗 Repositorios relacionados
+
+Aquí puedes encontrar otros repositorios que complementan este proyecto:
+
+- [📁 upsglam2](https://github.com/Chris-Liter/upsglam2.git)  
+  _Frontend desarrollado en Flutter._
+
+- [📁 servicioCuda](https://github.com/xDieGGox/servicioCuda.git)  
+  _API Flask para la creación de filtros con pycuda._
+
